@@ -1,0 +1,113 @@
+.image-display {
+  padding: 20px;
+  margin: 20px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.image-display h2 {
+  margin-top: 0;
+  color: #333;
+}
+
+.controls {
+  margin-bottom: 20px;
+}
+
+.control-group {
+  margin-bottom: 15px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #333;
+}
+
+.file-input {
+  display: block;
+  padding: 8px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.number-input {
+  padding: 8px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 150px;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.generate-button,
+.clear-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.generate-button {
+  background-color: #2196F3;
+  color: white;
+}
+
+.generate-button:hover {
+  background-color: #0b7dda;
+}
+
+.clear-button {
+  background-color: #ff9800;
+  color: white;
+}
+
+.clear-button:hover:not(:disabled) {
+  background-color: #e68900;
+}
+
+.clear-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.display-section {
+  margin-top: 20px;
+}
+
+.canvas-container {
+  display: inline-block;
+  border: 1px solid #ddd;
+  background-color: white;
+  max-width: 100%;
+}
+
+.image-canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.info-text {
+  margin-top: 10px;
+  color: #666;
+  font-style: italic;
+}
+
+.placeholder {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  margin-top: 20px;
+}
