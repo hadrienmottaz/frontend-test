@@ -20,7 +20,6 @@ import {
 import {
   ConfigSection,
   ProgressSection,
-  StatusLog,
   ImagePreviewGrid,
   FileSelector
 } from './upload';
@@ -45,7 +44,6 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
   // File management
   const { 
     selectedFiles, 
-    previews, 
     handleFileSelect, 
     clearFiles 
   } = useFileSelection();
@@ -83,6 +81,8 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
   const statusesRef = useRef([]);
   const totalBytesRef = useRef(0);
   const uploadStartTimeRef = useRef(null);
+  const cancelledRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   // Handle file selection
   const onFileSelect = useCallback((files) => {
@@ -97,6 +97,15 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
     resetProgress();
     clearStatuses();
   }, [clearFiles, resetProgress, clearStatuses]);
+
+  // Handle cancel upload
+  const handleCancelUpload = useCallback(() => {
+    cancelledRef.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    addStatus('⚠ Upload cancelled by user', 'error');
+  }, [addStatus]);
 
   // Upload a single file and register it
   const uploadAndRegisterFile = useCallback(async (file, index, blobInfo, addStatusMsg) => {
@@ -193,6 +202,8 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
     statusesRef.current = [];
     totalBytesRef.current = 0;
     uploadStartTimeRef.current = Date.now();
+    cancelledRef.current = false;
+    abortControllerRef.current = new AbortController();
     startTracking();
     setConcurrency(2);
     setThroughputDisplay(0);
@@ -286,13 +297,15 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
       };
 
       const worker = async () => {
-        while (taskIndex < selectedFiles.length) {
+        while (taskIndex < selectedFiles.length && !cancelledRef.current) {
           const currentIndex = taskIndex++;
           if (currentIndex >= selectedFiles.length) break;
+          if (cancelledRef.current) break;
           
           try {
             await executeTask(currentIndex);
           } catch (error) {
+            if (cancelledRef.current) break;
             console.error(`Task ${currentIndex} failed:`, error);
           }
         }
@@ -308,8 +321,12 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
 
       // Monitor and spawn additional workers if concurrency increases
       const monitorInterval = setInterval(() => {
+        if (cancelledRef.current) {
+          clearInterval(monitorInterval);
+          return;
+        }
         const targetConcurrency = concurrencyController.getConcurrency();
-        while (workers.length < targetConcurrency && taskIndex < selectedFiles.length) {
+        while (workers.length < targetConcurrency && taskIndex < selectedFiles.length && !cancelledRef.current) {
           workers.push(worker());
         }
       }, 100);
@@ -320,19 +337,21 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
         clearInterval(monitorInterval);
       }
 
-      // Complete
-      setOverallProgress(100);
-      const finalMetrics = concurrencyController.getMetrics();
-      addStatusMsg(
-        `🎉 Complete! All ${selectedFiles.length} image(s) uploaded. Average throughput: ${formatThroughput(finalMetrics.averageThroughput)}`,
-        'success'
-      );
+      // Complete (only if not cancelled)
+      if (!cancelledRef.current) {
+        setOverallProgress(100);
+        const finalMetrics = concurrencyController.getMetrics();
+        addStatusMsg(
+          `🎉 Complete! All ${selectedFiles.length} image(s) uploaded. Average throughput: ${formatThroughput(finalMetrics.averageThroughput)}`,
+          'success'
+        );
 
-      // Clear after delay
-      setTimeout(() => {
-        clearFiles();
-        resetProgress();
-      }, 3000);
+        // Clear after delay
+        setTimeout(() => {
+          clearFiles();
+          resetProgress();
+        }, 3000);
+      }
 
     } catch (error) {
       console.error('Error uploading images:', error);
@@ -375,6 +394,7 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
         onFileSelect={onFileSelect}
         onUpload={handleUpload}
         onClear={handleClear}
+        onCancel={handleCancelUpload}
         selectedFileCount={selectedFiles.length}
         uploading={uploading}
       />
@@ -389,11 +409,8 @@ const ImageUploader = ({ apiServiceOverride = null }) => {
         />
       )}
       
-      <StatusLog statuses={statuses} />
-      
       <ImagePreviewGrid
         files={selectedFiles}
-        previews={previews}
         fileProgress={fileProgress}
       />
     </div>

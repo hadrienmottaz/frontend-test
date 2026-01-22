@@ -100,11 +100,10 @@ describe('useUpload Hooks', () => {
   });
 
   describe('useFileSelection', () => {
-    it('should initialize with empty arrays', () => {
+    it('should initialize with empty array', () => {
       const { result } = renderHook(() => useFileSelection());
       
       expect(result.current.selectedFiles).toEqual([]);
-      expect(result.current.previews).toEqual([]);
     });
 
     it('should handle file selection', () => {
@@ -120,11 +119,9 @@ describe('useUpload Hooks', () => {
       });
       
       expect(result.current.selectedFiles).toHaveLength(2);
-      expect(result.current.previews).toHaveLength(2);
-      expect(global.URL.createObjectURL).toHaveBeenCalledTimes(2);
     });
 
-    it('should clear files and revoke preview URLs', () => {
+    it('should clear files', () => {
       const { result } = renderHook(() => useFileSelection());
       
       const mockFiles = [
@@ -140,25 +137,6 @@ describe('useUpload Hooks', () => {
       });
       
       expect(result.current.selectedFiles).toEqual([]);
-      expect(result.current.previews).toEqual([]);
-      expect(global.URL.revokeObjectURL).toHaveBeenCalled();
-    });
-
-    it('should revoke old preview URLs when selecting new files', () => {
-      const { result } = renderHook(() => useFileSelection());
-      
-      const mockFiles1 = [new File(['content1'], 'file1.jpg', { type: 'image/jpeg' })];
-      const mockFiles2 = [new File(['content2'], 'file2.jpg', { type: 'image/jpeg' })];
-      
-      act(() => {
-        result.current.handleFileSelect(mockFiles1);
-      });
-      
-      act(() => {
-        result.current.handleFileSelect(mockFiles2);
-      });
-      
-      expect(global.URL.revokeObjectURL).toHaveBeenCalled();
     });
   });
 

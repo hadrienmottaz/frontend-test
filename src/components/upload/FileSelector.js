@@ -7,6 +7,7 @@ const FileSelector = ({
   onFileSelect,
   onUpload,
   onClear,
+  onCancel,
   selectedFileCount,
   uploading
 }) => {
@@ -33,14 +34,25 @@ const FileSelector = ({
         >
           {uploading ? 'Uploading...' : 'Upload Images'}
         </button>
-        <button 
-          onClick={onClear} 
-          disabled={selectedFileCount === 0 || uploading}
-          className="clear-button"
-          data-testid="clear-button"
-        >
-          Clear
-        </button>
+        {uploading && (
+          <button 
+            onClick={onCancel}
+            className="cancel-button"
+            data-testid="cancel-button"
+          >
+            Cancel
+          </button>
+        )}
+        {!uploading && (
+          <button 
+            onClick={onClear} 
+            disabled={selectedFileCount === 0}
+            className="clear-button"
+            data-testid="clear-button"
+          >
+            Clear
+          </button>
+        )}
       </div>
     </div>
   );

@@ -53,39 +53,23 @@ export const useConfig = (defaultConfig = {}) => {
 
 /**
  * File selection and preview management hook
+ * Optimized for large file counts - no longer generates all previews upfront
  */
 export const useFileSelection = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [previews, setPreviews] = useState([]);
 
   const handleFileSelect = useCallback((files) => {
     const fileArray = Array.from(files);
     setSelectedFiles(fileArray);
-    
-    // Revoke old preview URLs
-    previews.forEach(url => URL.revokeObjectURL(url));
-    
-    // Generate new previews
-    const previewUrls = fileArray.map(file => URL.createObjectURL(file));
-    setPreviews(previewUrls);
-  }, [previews]);
+    // Preview URLs are now generated lazily by ImagePreviewItem
+  }, []);
 
   const clearFiles = useCallback(() => {
-    previews.forEach(url => URL.revokeObjectURL(url));
     setSelectedFiles([]);
-    setPreviews([]);
-  }, [previews]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      previews.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, [previews]);
+  }, []);
 
   return {
     selectedFiles,
-    previews,
     handleFileSelect,
     clearFiles
   };
