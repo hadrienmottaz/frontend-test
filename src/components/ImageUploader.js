@@ -1,580 +1,401 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import './ImageUploader.css';
 
-const ImageUploader = () => {
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [previews, setPreviews] = useState([]);
-  const [bearerToken, setBearerToken] = useState('');
-  const [projectId, setProjectId] = useState('');
+// Services and utilities
+import apiService from '../services/api';
+import { 
+  createAdaptiveConcurrencyController, 
+  formatThroughput 
+} from '../utils/adaptiveConcurrency';
+
+// Hooks
+import { 
+  useConfig, 
+  useFileSelection, 
+  useUploadProgress, 
+  useUploadStatus 
+} from '../hooks/useUpload';
+
+// Sub-components
+import {
+  ConfigSection,
+  ProgressSection,
+  StatusLog,
+  ImagePreviewGrid,
+  FileSelector
+} from './upload';
+
+/**
+ * Modular Image Uploader Component
+ * Handles image upload to Azure blob storage with adaptive concurrency optimization
+ */
+const ImageUploader = ({ apiServiceOverride = null }) => {
+  // Use provided API service or default
+  const api = apiServiceOverride || apiService;
+
+  // Configuration
+  const { 
+    config, 
+    configSaved, 
+    saveConfig, 
+    loadConfig, 
+    updateConfig 
+  } = useConfig();
+
+  // File management
+  const { 
+    selectedFiles, 
+    previews, 
+    handleFileSelect, 
+    clearFiles 
+  } = useFileSelection();
+
+  // Progress tracking
+  const {
+    fileProgress,
+    overallProgress,
+    elapsedTime,
+    estimatedTimeRemaining,
+    currentThroughput,
+    startTracking,
+    updateFileProgress,
+    recalculateOverallProgress,
+    updateThroughput,
+    resetProgress,
+    setOverallProgress,
+    setFileProgress
+  } = useUploadProgress(selectedFiles.length);
+
+  // Status messages
+  const { 
+    statuses, 
+    addStatus, 
+    clearStatuses 
+  } = useUploadStatus();
+
+  // Upload state
   const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState([]);
-  const [fileProgress, setFileProgress] = useState({});
-  const [overallProgress, setOverallProgress] = useState(0);
-  const [apiBaseUrl, setApiBaseUrl] = useState('https://www.cognex.com/api');
-  const [configSaved, setConfigSaved] = useState(false);
-  const [uploadStartTime, setUploadStartTime] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
+  const [concurrency, setConcurrency] = useState(2);
+  const [throughputDisplay, setThroughputDisplay] = useState(0);
+  
+  // Refs for tracking
+  const progressMapRef = useRef({});
+  const statusesRef = useRef([]);
+  const totalBytesRef = useRef(0);
+  const uploadStartTimeRef = useRef(null);
 
-  // Auto-load saved configuration on component mount
-  useEffect(() => {
-    loadConfig();
-  }, []);
+  // Handle file selection
+  const onFileSelect = useCallback((files) => {
+    handleFileSelect(files);
+    resetProgress();
+    clearStatuses();
+  }, [handleFileSelect, resetProgress, clearStatuses]);
 
-  // Track elapsed time during upload
-  useEffect(() => {
-    let interval;
-    if (uploading && uploadStartTime) {
-      interval = setInterval(() => {
-        const elapsed = (Date.now() - uploadStartTime) / 1000;
-        setElapsedTime(elapsed);
+  // Handle clear
+  const handleClear = useCallback(() => {
+    clearFiles();
+    resetProgress();
+    clearStatuses();
+  }, [clearFiles, resetProgress, clearStatuses]);
+
+  // Upload a single file and register it
+  const uploadAndRegisterFile = useCallback(async (file, index, blobInfo, addStatusMsg) => {
+    // Upload to blob
+    const uploadResult = await api.uploadToBlob(
+      blobInfo.upload_url,
+      file,
+      (loaded, total) => {
+        const percentComplete = (loaded / total) * 100;
+        progressMapRef.current[index] = {
+          progress: percentComplete,
+          status: 'uploading'
+        };
+        setFileProgress({ ...progressMapRef.current });
         
-        // Calculate estimated time remaining
-        if (overallProgress > 0 && overallProgress < 100) {
-          const estimatedTotal = elapsed / (overallProgress / 100);
-          const remaining = estimatedTotal - elapsed;
-          setEstimatedTimeRemaining(Math.max(0, remaining));
-        }
-      }, 100);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [uploading, uploadStartTime, overallProgress]);
-
-  const saveConfig = () => {
-    const config = {
-      apiBaseUrl,
-      projectId,
-      bearerToken
-    };
-    localStorage.setItem('imageUploaderConfig', JSON.stringify(config));
-    setConfigSaved(true);
-    setTimeout(() => setConfigSaved(false), 2000);
-  };
-
-  const loadConfig = () => {
-    const savedConfig = localStorage.getItem('imageUploaderConfig');
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig);
-        if (config.apiBaseUrl) setApiBaseUrl(config.apiBaseUrl);
-        if (config.projectId) setProjectId(config.projectId);
-        if (config.bearerToken) setBearerToken(config.bearerToken);
-      } catch (error) {
-        console.error('Error loading saved configuration:', error);
+        // Recalculate overall progress
+        const totalProgress = Object.values(progressMapRef.current)
+          .reduce((sum, item) => sum + (item.progress || 0), 0);
+        setOverallProgress(totalProgress / selectedFiles.length);
       }
-    }
-  };
+    );
 
-  const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files);
-    setSelectedFiles(files);
-
-    // Generate previews for selected images
-    const previewUrls = files.map(file => URL.createObjectURL(file));
-    setPreviews(previewUrls);
+    // Mark upload complete
+    progressMapRef.current[index] = {
+      progress: 100,
+      status: 'completed'
+    };
+    setFileProgress({ ...progressMapRef.current });
     
-    // Reset progress
-    setFileProgress({});
-    setOverallProgress(0);
-    setUploadStatus([]);
-    setElapsedTime(0);
-    setEstimatedTimeRemaining(0);
-  };
+    addStatusMsg(`✓ ${file.name} uploaded to blob storage`, 'success');
 
-  const handleUpload = async () => {
+    // Register image
+    addStatusMsg(`Registering ${file.name}...`, 'info');
+    const imageData = await api.registerImage(
+      config.apiBaseUrl,
+      config.projectId,
+      config.bearerToken,
+      file.name,
+      blobInfo.blob_url
+    );
+    addStatusMsg(`✓ Registered ${file.name}`, 'success');
+
+    // Create sample with retry
+    const sampleBaseName = file.name.replace(/\.[^/.]+$/, '');
+    addStatusMsg(`Creating sample: ${sampleBaseName}...`, 'info');
+    
+    const sampleResult = await api.createSampleWithRetry(
+      config.apiBaseUrl,
+      config.projectId,
+      config.bearerToken,
+      sampleBaseName,
+      imageData.image_id,
+      10,
+      (retryCount, newName) => {
+        addStatusMsg(`⚠ Sample name conflict, retrying as: ${newName}`, 'info');
+      }
+    );
+    
+    addStatusMsg(`✓ Created sample: ${sampleResult.name}`, 'success');
+
+    return {
+      bytes: file.size,
+      result: {
+        fileName: file.name,
+        blobUrl: blobInfo.blob_url,
+        imageId: imageData.image_id,
+        sampleId: sampleResult.sample_id,
+        sampleName: sampleResult.name
+      }
+    };
+  }, [api, config, selectedFiles.length, setFileProgress, setOverallProgress]);
+
+  // Main upload handler
+  const handleUpload = useCallback(async () => {
     if (selectedFiles.length === 0) {
       alert('Please select at least one image to upload');
       return;
     }
 
-    if (!bearerToken.trim()) {
+    if (!config.bearerToken.trim()) {
       alert('Please provide a bearer token');
       return;
     }
 
-    if (!projectId.trim()) {
+    if (!config.projectId.trim()) {
       alert('Please provide a project ID');
       return;
     }
 
+    // Reset state
     setUploading(true);
-    setUploadStatus([]);
-    setFileProgress({});
-    setOverallProgress(0);
-    setUploadStartTime(Date.now());
-    setElapsedTime(0);
-    setEstimatedTimeRemaining(0);
-    
-    const statuses = [];
-    const progressMap = {};
+    clearStatuses();
+    progressMapRef.current = {};
+    statusesRef.current = [];
+    totalBytesRef.current = 0;
+    uploadStartTimeRef.current = Date.now();
+    startTracking();
+    setConcurrency(2);
+    setThroughputDisplay(0);
+
+    // Initialize progress
+    selectedFiles.forEach((file, index) => {
+      progressMapRef.current[index] = { progress: 0, status: 'pending' };
+    });
+    setFileProgress({ ...progressMapRef.current });
+
+    // Helper to add status
+    const addStatusMsg = (message, type) => {
+      statusesRef.current = [...statusesRef.current, { message, type }];
+      addStatus(message, type);
+    };
 
     try {
-      // Step 1: Create blobs - call the create blob API
-      const createBlobUrl = `${apiBaseUrl}/projects/${projectId}/storage/default/blobs`;
+      // Step 1: Create blob URLs
+      addStatusMsg('Creating blob URLs...', 'info');
       
-      statuses.push({ message: 'Creating blob URLs...', type: 'info' });
-      setUploadStatus([...statuses]);
+      const blobsData = await api.createBlobs(
+        config.apiBaseUrl,
+        config.projectId,
+        config.bearerToken,
+        selectedFiles.length
+      );
       
-      const createBlobResponse = await fetch(createBlobUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${bearerToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          count_blobs: selectedFiles.length
-        })
+      addStatusMsg(`Created ${blobsData.length} blob URL(s)`, 'success');
+
+      // Create adaptive concurrency controller
+      const concurrencyController = createAdaptiveConcurrencyController({
+        initialConcurrency: 2,
+        minConcurrency: 1,
+        maxConcurrency: 8,
+        measurementWindow: 2,
+        increaseThreshold: 5,
+        decreaseThreshold: -15,
+        stabilityCount: 3
       });
 
-      if (!createBlobResponse.ok) {
-        const errorText = await createBlobResponse.text();
-        throw new Error(`Failed to create blob URLs: ${createBlobResponse.status} - ${errorText}`);
-      }
+      // Create upload tasks
+      const results = new Array(selectedFiles.length);
+      let taskIndex = 0;
+      let completedCount = 0;
 
-      const blobsData = await createBlobResponse.json();
-      statuses.push({ message: `Created ${blobsData.length} blob URL(s)`, type: 'success' });
-      setUploadStatus([...statuses]);
+      const executeTask = async (index) => {
+        const file = selectedFiles[index];
+        const blobInfo = blobsData[index];
 
-      // Initialize progress for each file
-      selectedFiles.forEach((file, index) => {
-        progressMap[index] = { progress: 0, status: 'pending', fileName: file.name };
-      });
-      setFileProgress({ ...progressMap });
+        if (!blobInfo || !blobInfo.upload_url) {
+          throw new Error(`Missing upload URL for file ${index + 1}`);
+        }
 
-      // Step 2: Upload files and immediately register them with progress tracking
-      const uploadAndRegisterFile = async (file, index, blobInfo) => {
-        return new Promise(async (resolve, reject) => {
-          const xhr = new XMLHttpRequest();
+        addStatusMsg(`Starting upload: ${file.name}`, 'info');
+        
+        try {
+          const taskResult = await uploadAndRegisterFile(file, index, blobInfo, addStatusMsg);
           
-          // Track upload progress
-          xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-              const percentComplete = (e.loaded / e.total) * 100;
-              progressMap[index] = {
-                ...progressMap[index],
-                progress: percentComplete,
-                status: 'uploading'
-              };
-              setFileProgress({ ...progressMap });
-              
-              // Update overall progress
-              const totalProgress = Object.values(progressMap).reduce((sum, item) => sum + item.progress, 0);
-              const avgProgress = totalProgress / selectedFiles.length;
-              setOverallProgress(avgProgress);
+          // Record completion for throughput measurement
+          concurrencyController.recordCompletion(taskResult.bytes);
+          completedCount++;
+
+          // Check for concurrency adjustment
+          const adjustment = concurrencyController.measureAndAdjust((direction, newConcurrency, throughput) => {
+            setConcurrency(newConcurrency);
+            if (direction === 'increase') {
+              addStatusMsg(`📈 Throughput improved, increasing concurrency to ${newConcurrency}`, 'info');
+            } else if (direction === 'decrease') {
+              addStatusMsg(`📉 Throughput decreased, reducing concurrency to ${newConcurrency}`, 'info');
+            } else if (direction === 'probe') {
+              addStatusMsg(`🔄 Testing higher concurrency: ${newConcurrency}`, 'info');
             }
           });
-          
-          // Handle completion
-          xhr.addEventListener('load', async () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              progressMap[index] = {
-                ...progressMap[index],
-                progress: 100,
-                status: 'completed'
-              };
-              setFileProgress({ ...progressMap });
-              
-              statuses.push({ message: `✓ ${file.name} uploaded to blob storage`, type: 'success' });
-              setUploadStatus([...statuses]);
-              
-              try {
-                // Immediately register the image
-                statuses.push({ message: `Registering ${file.name}...`, type: 'info' });
-                setUploadStatus([...statuses]);
-                
-                const addImageUrl = `${apiBaseUrl}/projects/${projectId}/images`;
-                const addImageResponse = await fetch(addImageUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${bearerToken}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    filename: file.name,
-                    image_url: blobInfo.blob_url
-                  })
-                });
-                
-                if (!addImageResponse.ok) {
-                  const errorText = await addImageResponse.text();
-                  throw new Error(`Failed to register image: ${addImageResponse.status} - ${errorText}`);
-                }
-                
-                const imageData = await addImageResponse.json();
-                statuses.push({ message: `✓ Registered ${file.name}`, type: 'success' });
-                setUploadStatus([...statuses]);
-                
-                // Immediately create the sample
-                const sampleName = file.name.replace(/\.[^/.]+$/, '');
-                let currentSampleName = sampleName;
-                let retryCount = 0;
-                let sampleCreated = false;
-                
-                while (!sampleCreated && retryCount < 10) {
-                  try {
-                    statuses.push({ message: `Creating sample: ${currentSampleName}...`, type: 'info' });
-                    setUploadStatus([...statuses]);
-                    
-                    const addSamplesUrl = `${apiBaseUrl}/projects/${projectId}/samples`;
-                    const addSamplesResponse = await fetch(addSamplesUrl, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${bearerToken}`,
-                        'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify([{
-                        name: currentSampleName,
-                        frames: {
-                          default: {
-                            image_id: imageData.image_id
-                          }
-                        }
-                      }])
-                    });
-                    
-                    if (addSamplesResponse.status === 409) {
-                      // Conflict - sample name already exists, retry with suffix
-                      retryCount++;
-                      currentSampleName = `${sampleName}_${retryCount}`;
-                      statuses.push({ 
-                        message: `⚠ Sample name conflict, retrying as: ${currentSampleName}`, 
-                        type: 'info' 
-                      });
-                      setUploadStatus([...statuses]);
-                      continue;
-                    }
-                    
-                    if (!addSamplesResponse.ok) {
-                      const errorText = await addSamplesResponse.text();
-                      throw new Error(`Failed to create sample: ${addSamplesResponse.status} - ${errorText}`);
-                    }
-                    
-                    const samplesData = await addSamplesResponse.json();
-                    sampleCreated = true;
-                    statuses.push({ 
-                      message: `✓ Created sample: ${currentSampleName}`, 
-                      type: 'success' 
-                    });
-                    setUploadStatus([...statuses]);
-                    
-                    resolve({
-                      fileName: file.name,
-                      blobUrl: blobInfo.blob_url,
-                      imageId: imageData.image_id,
-                      sampleId: samplesData[0].sample_id,
-                      sampleName: currentSampleName
-                    });
-                  } catch (sampleError) {
-                    if (retryCount >= 9) {
-                      throw sampleError;
-                    }
-                    retryCount++;
-                    currentSampleName = `${sampleName}_${retryCount}`;
-                  }
-                }
-                
-                if (!sampleCreated) {
-                  throw new Error('Failed to create sample after 10 retries');
-                }
-                
-              } catch (error) {
-                statuses.push({ 
-                  message: `✗ Failed to process ${file.name}: ${error.message}`, 
-                  type: 'error' 
-                });
-                setUploadStatus([...statuses]);
-                reject(error);
-              }
-            } else {
-              progressMap[index] = {
-                ...progressMap[index],
-                status: 'error'
-              };
-              setFileProgress({ ...progressMap });
-              reject(new Error(`Failed to upload ${file.name}: ${xhr.status}`));
-            }
-          });
-          
-          // Handle errors
-          xhr.addEventListener('error', () => {
-            progressMap[index] = {
-              ...progressMap[index],
-              status: 'error'
-            };
-            setFileProgress({ ...progressMap });
-            reject(new Error(`Network error uploading ${file.name}`));
-          });
-          
-          // Start upload
-          xhr.open('PUT', blobInfo.upload_url);
-          xhr.setRequestHeader('x-ms-blob-type', 'BlockBlob');
-          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-          xhr.send(file);
-        });
+
+          // Update throughput display
+          const metrics = concurrencyController.getMetrics();
+          setThroughputDisplay(metrics.averageThroughput);
+          updateThroughput(taskResult.bytes);
+
+          results[index] = taskResult.result;
+          return taskResult;
+        } catch (error) {
+          progressMapRef.current[index] = {
+            progress: progressMapRef.current[index]?.progress || 0,
+            status: 'error'
+          };
+          setFileProgress({ ...progressMapRef.current });
+          addStatusMsg(`✗ Failed to process ${file.name}: ${error.message}`, 'error');
+          throw error;
+        }
       };
 
-      // Helper function to run promises with concurrency limit
-      const runWithConcurrencyLimit = async (tasks, limit) => {
-        const results = [];
-        const executing = [];
-        
-        for (const [index, task] of tasks.entries()) {
-          const promise = task().then(result => {
-            executing.splice(executing.indexOf(promise), 1);
-            return result;
-          });
+      const worker = async () => {
+        while (taskIndex < selectedFiles.length) {
+          const currentIndex = taskIndex++;
+          if (currentIndex >= selectedFiles.length) break;
           
-          results.push(promise);
-          executing.push(promise);
-          
-          if (executing.length >= limit) {
-            await Promise.race(executing);
+          try {
+            await executeTask(currentIndex);
+          } catch (error) {
+            console.error(`Task ${currentIndex} failed:`, error);
           }
         }
-        
-        return Promise.all(results);
       };
 
-      // Upload files with concurrency limit (4 simultaneous uploads for optimal performance)
-      const UPLOAD_CONCURRENCY = 6;
+      // Start workers with dynamic concurrency
+      const initialConcurrency = concurrencyController.getConcurrency();
+      const workers = [];
       
-      const uploadTasks = selectedFiles.map((file, index) => {
-        return () => {
-          const blobInfo = blobsData[index];
-          
-          if (!blobInfo || !blobInfo.upload_url) {
-            return Promise.reject(new Error(`Missing upload URL for file ${index + 1}`));
-          }
+      for (let i = 0; i < Math.min(initialConcurrency, selectedFiles.length); i++) {
+        workers.push(worker());
+      }
 
-          statuses.push({ message: `Starting upload: ${file.name}`, type: 'info' });
-          setUploadStatus([...statuses]);
+      // Monitor and spawn additional workers if concurrency increases
+      const monitorInterval = setInterval(() => {
+        const targetConcurrency = concurrencyController.getConcurrency();
+        while (workers.length < targetConcurrency && taskIndex < selectedFiles.length) {
+          workers.push(worker());
+        }
+      }, 100);
 
-          return uploadAndRegisterFile(file, index, blobInfo);
-        };
-      });
+      try {
+        await Promise.all(workers);
+      } finally {
+        clearInterval(monitorInterval);
+      }
 
-      const results = await runWithConcurrencyLimit(uploadTasks, UPLOAD_CONCURRENCY);
-      
+      // Complete
       setOverallProgress(100);
-      statuses.push({ 
-        message: `🎉 Complete! All ${selectedFiles.length} image(s) uploaded and added to project!`, 
-        type: 'success' 
-      });
-      setUploadStatus([...statuses]);
-      
-      console.log('Upload results:', results);
-      
-      // Clear files after successful upload
+      const finalMetrics = concurrencyController.getMetrics();
+      addStatusMsg(
+        `🎉 Complete! All ${selectedFiles.length} image(s) uploaded. Average throughput: ${formatThroughput(finalMetrics.averageThroughput)}`,
+        'success'
+      );
+
+      // Clear after delay
       setTimeout(() => {
-        setSelectedFiles([]);
-        setPreviews([]);
-        setFileProgress({});
-        setOverallProgress(0);
+        clearFiles();
+        resetProgress();
       }, 3000);
 
     } catch (error) {
       console.error('Error uploading images:', error);
-      statuses.push({ 
-        message: `Error: ${error.message}`, 
-        type: 'error' 
-      });
-      setUploadStatus([...statuses]);
+      addStatusMsg(`Error: ${error.message}`, 'error');
     } finally {
       setUploading(false);
     }
-  };
-
-  const handleClear = () => {
-    setSelectedFiles([]);
-    setPreviews([]);
-  };
+  }, [
+    selectedFiles, 
+    config, 
+    api, 
+    clearStatuses, 
+    startTracking, 
+    setFileProgress, 
+    addStatus,
+    uploadAndRegisterFile,
+    updateThroughput,
+    setOverallProgress,
+    clearFiles,
+    resetProgress
+  ]);
 
   return (
     <div className="image-uploader">
       <h2>Image Uploader</h2>
       
-      <div className="config-section">
-        <div className="config-group">
-          <label htmlFor="api-base-url">API Base URL:</label>
-          <input
-            id="api-base-url"
-            type="text"
-            value={apiBaseUrl}
-            onChange={(e) => setApiBaseUrl(e.target.value)}
-            placeholder="https://www.cognex.com/api"
-            className="config-input"
-          />
-        </div>
-        
-        <div className="config-group">
-          <label htmlFor="project-id">Project ID:</label>
-          <input
-            id="project-id"
-            type="text"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            placeholder="Enter project UUID"
-            className="config-input"
-          />
-        </div>
-        
-        <div className="config-group">
-          <label htmlFor="bearer-token">Bearer Token:</label>
-          <input
-            id="bearer-token"
-            type="password"
-            value={bearerToken}
-            onChange={(e) => setBearerToken(e.target.value)}
-            placeholder="Enter your JWT token"
-            className="config-input"
-          />
-        </div>
-        
-        <div className="config-buttons">
-          <button 
-            onClick={saveConfig}
-            className="config-button save-button"
-          >
-            💾 Save Configuration
-          </button>
-          <button 
-            onClick={loadConfig}
-            className="config-button load-button"
-          >
-            📂 Load Configuration
-          </button>
-          {configSaved && (
-            <span className="config-saved-message">✓ Configuration saved!</span>
-          )}
-        </div>
-      </div>
+      <ConfigSection
+        apiBaseUrl={config.apiBaseUrl}
+        projectId={config.projectId}
+        bearerToken={config.bearerToken}
+        onApiBaseUrlChange={(value) => updateConfig('apiBaseUrl', value)}
+        onProjectIdChange={(value) => updateConfig('projectId', value)}
+        onBearerTokenChange={(value) => updateConfig('bearerToken', value)}
+        onSave={saveConfig}
+        onLoad={loadConfig}
+        configSaved={configSaved}
+      />
       
-      <div className="upload-section">
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-          className="file-input"
-        />
-        <div className="button-group">
-          <button 
-            onClick={handleUpload} 
-            disabled={selectedFiles.length === 0 || uploading}
-            className="upload-button"
-          >
-            {uploading ? 'Uploading...' : 'Upload Images'}
-          </button>
-          <button 
-            onClick={handleClear} 
-            disabled={selectedFiles.length === 0 || uploading}
-            className="clear-button"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
+      <FileSelector
+        onFileSelect={onFileSelect}
+        onUpload={handleUpload}
+        onClear={handleClear}
+        selectedFileCount={selectedFiles.length}
+        uploading={uploading}
+      />
       
       {uploading && overallProgress >= 0 && (
-        <div className="progress-section">
-          <div className="progress-header">
-            <h3>Overall Progress</h3>
-            <div className="time-info">
-              <span className="time-elapsed">
-                ⏱️ {elapsedTime.toFixed(1)}s
-              </span>
-              {estimatedTimeRemaining > 0 && overallProgress < 100 && (
-                <span className="time-remaining">
-                  ⏳ ~{estimatedTimeRemaining.toFixed(1)}s remaining
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="progress-bar-container">
-            <div 
-              className="progress-bar overall" 
-              style={{ width: `${overallProgress}%` }}
-            >
-              <span className="progress-text">{Math.round(overallProgress)}%</span>
-            </div>
-          </div>
-        </div>
+        <ProgressSection
+          overallProgress={overallProgress}
+          elapsedTime={elapsedTime}
+          estimatedTimeRemaining={estimatedTimeRemaining}
+          throughput={throughputDisplay}
+          concurrency={concurrency}
+        />
       )}
       
-      {uploadStatus.length > 0 && (
-        <div className="status-section">
-          <h3>Upload Status</h3>
-          <div className="status-log">
-            {uploadStatus.map((status, index) => (
-              <div key={index} className={`status-message ${status.type}`}>
-                {status.message}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <StatusLog statuses={statuses} />
       
-      {selectedFiles.length > 0 && (
-        <div className="preview-section">
-          <h3>Selected Images ({selectedFiles.length})</h3>
-          <div className="preview-grid">
-            {previews.map((preview, index) => {
-              const progress = fileProgress[index];
-              const isCompleted = progress && progress.status === 'completed';
-              const isUploading = progress && progress.status === 'uploading';
-              const hasError = progress && progress.status === 'error';
-              const progressValue = progress ? progress.progress : 0;
-              
-              return (
-                <div key={index} className={`preview-item ${isCompleted ? 'completed' : ''} ${hasError ? 'error' : ''}`}>
-                  <div className="preview-image-wrapper">
-                    <img src={preview} alt={`Preview ${index + 1}`} />
-                    {isCompleted && (
-                      <div className="upload-checkmark">
-                        <svg width="48" height="48" viewBox="0 0 48 48">
-                          <circle cx="24" cy="24" r="22" fill="#4CAF50" />
-                          <path 
-                            d="M14 24 L20 30 L34 16" 
-                            stroke="white" 
-                            strokeWidth="3" 
-                            fill="none" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                    {hasError && (
-                      <div className="upload-error">
-                        <svg width="48" height="48" viewBox="0 0 48 48">
-                          <circle cx="24" cy="24" r="22" fill="#f44336" />
-                          <path 
-                            d="M16 16 L32 32 M32 16 L16 32" 
-                            stroke="white" 
-                            strokeWidth="3" 
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <p className="preview-filename">{selectedFiles[index].name}</p>
-                  {(isUploading || isCompleted || hasError) && (
-                    <div className="preview-progress-container">
-                      <div 
-                        className={`preview-progress-bar ${progress.status}`}
-                        style={{ width: `${progressValue}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <ImagePreviewGrid
+        files={selectedFiles}
+        previews={previews}
+        fileProgress={fileProgress}
+      />
     </div>
   );
 };
