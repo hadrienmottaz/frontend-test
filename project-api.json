@@ -1,0 +1,2174 @@
+{
+  "components": {
+    "parameters": {
+      "ProjectId": {
+        "description": "the project ID",
+        "in": "path",
+        "name": "project_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "TagId": {
+        "description": "the tag ID",
+        "in": "path",
+        "name": "tag_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "WorkspaceId": {
+        "description": "the workspace ID",
+        "in": "path",
+        "name": "workspace_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "400Error": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "description": "Invalid request"
+      },
+      "404Error": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "description": "Not found"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "get_projects_query": {
+        "title": "get_projects_query",
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "limit"
+        ],
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "If true, returns all projects. Otherwise, returns only the projects that the user has access to.\nNote: The user must have the `get:all_projects` scope set in the JWT token, or an error will be returned.\n",
+            "default": false
+          },
+          "filter": {
+            "description": "filters the projects by a specific criteria\n\nexamples:\n- `$.properties.type == \"Normal\"'` - filter by the project type\n- `'$.description like_regex \".*Wield.*\"'` - filter by the description\n- `\"$.user_properties.pinned == true\"` - filter by the pinned status\n- `'$.properties.type == \"Inspection\" && $.user_properties.pinned == false'` - filter by multiple criteria\n- `'$.tags.name==\"Inspection\"'` - filter by the tag name\n",
+            "type": "string",
+            "example": [
+              "$.properties.type == \"Normal\"",
+              "$.description like_regex \".*Wield.*\"",
+              "$.user_properties.starter == true",
+              "$.properties.type == \"Inspection\" && $.user_properties.pinned == false",
+              "$.tags.name==\"Inspection\""
+            ],
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s@]+$",
+            "maxLength": 255
+          },
+          "sort_criteria": {
+            "description": "list of sort criteria that are applied in order",
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "required": [
+                "path"
+              ],
+              "properties": {
+                "path": {
+                  "description": "how to order the response\n\nexamples:\n- `\"$.created\"` - sort by the created date\n- `\"$.user_properties.pinned\"` - sort by the pinned status\n",
+                  "type": "string",
+                  "pattern": "^\\$\\.[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$",
+                  "example": [
+                    "$.created",
+                    "$.user_properties.pinned"
+                  ]
+                },
+                "ascending": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "sort in ascending order if true, descending otherwise"
+                }
+              }
+            }
+          },
+          "limit": {
+            "description": "limits the number of items on a page",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "offset": {
+            "description": "specifies how many items to skip",
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 5000
+          }
+        }
+      },
+      "tag": {
+        "title": "tag",
+        "type": "object",
+        "required": [
+          "tag_id",
+          "name",
+          "style"
+        ],
+        "properties": {
+          "tag_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "style": {
+            "type": "object"
+          }
+        }
+      },
+      "project": {
+        "title": "project",
+        "required": [
+          "project_id",
+          "name",
+          "created",
+          "properties",
+          "user_properties",
+          "tags"
+        ],
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "description": "the project ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "description": "the project name",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "created": {
+            "description": "date this project was created",
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "description": "the project description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255
+          },
+          "workspace_id": {
+            "description": "the associated workspace ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "properties": {
+            "description": "list of properties associated with the project",
+            "type": "object"
+          },
+          "user_properties": {
+            "description": "list of user defined properties associated with the project",
+            "type": "object"
+          },
+          "tags": {
+            "description": "list of tags associated with the project",
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/tag"
+            }
+          }
+        }
+      },
+      "project_user": {
+        "type": "object",
+        "title": "project_user",
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "user_id": {
+            "description": "the user ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "description": "the role of this user",
+            "type": "string",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ]
+          }
+        }
+      },
+      "get_projects_resp_item": {
+        "title": "get_projects_resp_item",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/project"
+          },
+          {
+            "required": [
+              "users",
+              "project_users",
+              "workspace_users",
+              "storage",
+              "tags"
+            ],
+            "type": "object",
+            "properties": {
+              "users": {
+                "description": "list of users that have access to the project\nthis consolidates both project and workspace users\nand acts as the effective rights\n",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/components/schemas/project_user"
+                }
+              },
+              "project_users": {
+                "description": "list of users that have access to the project as granted with project permissions\n",
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/components/schemas/project_user"
+                }
+              },
+              "workspace_users": {
+                "description": "list of users that have access to the project as granted with workspaces permissions\n",
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/components/schemas/project_user"
+                }
+              },
+              "storage": {
+                "description": "list of containers associated with the project",
+                "type": "object",
+                "required": [
+                  "default"
+                ],
+                "additionalProperties": {
+                  "x-additionalPropertiesName": "container_name",
+                  "type": "object",
+                  "properties": {
+                    "container_id": {
+                      "description": "the container ID",
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "get_projects_resp": {
+        "title": "get_projects_resp",
+        "type": "object",
+        "required": [
+          "projects"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/components/schemas/get_projects_resp_item"
+            }
+          }
+        }
+      },
+      "post_project_body": {
+        "title": "post_project_body",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "the project name",
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$"
+          },
+          "default_container_id": {
+            "description": "override the container ID used for the 'default' container",
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "description": "the associated workspace ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": {
+            "description": "the project description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255
+          },
+          "properties": {
+            "description": "the project properties",
+            "type": "object"
+          }
+        }
+      },
+      "head_projects_query": {
+        "title": "head_projects_query",
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "If true, returns all projects. Otherwise, returns only the projects that the user has access to.\nNote: The user must have the `get:all_projects` scope set in the JWT token, or an error will be returned.\n",
+            "default": false
+          },
+          "filter": {
+            "description": "filters the projects by a specific criteria\n\nexamples:\n- `$.properties.type == \"Normal\"'` - filter by the project type\n- `'$.description like_regex \".*Wield.*\"'` - filter by the description\n- `\"$.user_properties.pinned == true\"` - filter by the pinned status\n- `'$.properties.type == \"Inspection\" && $.user_properties.pinned == false'` - filter by multiple criteria\n- `'$.tags.name==\"Inspection\"'` - filter by the tag name\n",
+            "type": "string",
+            "example": [
+              "$.properties.type == \"Normal\"",
+              "$.description like_regex \".*Wield.*\"",
+              "$.user_properties.starter == true",
+              "$.properties.type == \"Inspection\" && $.user_properties.pinned == false",
+              "$.tags.name==\"Inspection\""
+            ],
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$",
+            "maxLength": 255
+          }
+        }
+      },
+      "get_project_resp": {
+        "title": "get_project_resp",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/get_projects_resp_item"
+          }
+        ]
+      },
+      "patch_project_by_id_body": {
+        "title": "patch_project_by_id_body",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "the new project name",
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "minLength": 2
+          },
+          "description": {
+            "description": "the new project description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "workspace_id": {
+            "description": "moves the project to this workspace",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "patch_project_by_id_resp": {
+        "title": "patch_project_by_id_resp",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "description": "the new project name",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "minLength": 2,
+            "maxLength": 64
+          },
+          "description": {
+            "description": "the new project description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "workspace_id": {
+            "description": "moves the project to this workspace",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "post_project_copy": {
+        "title": "post_project_copy",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "description": "the project name",
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$"
+          },
+          "default_container_id": {
+            "description": "override the container ID used for the 'default' container",
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "description": "the associated workspace ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": {
+            "description": "the project description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255
+          },
+          "properties": {
+            "description": "the project properties",
+            "type": "object"
+          },
+          "tool_chains": {
+            "description": "Specify which tool chains to copy.\n- If empty, all tool chains are copied.\n- If the tool_chain version_id is not set, the latest version is copied.\n",
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "required": [
+                "tool_chain_id"
+              ],
+              "properties": {
+                "tool_chain_id": {
+                  "description": "the tool chain ID",
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "version_id": {
+                  "description": "the container ID",
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get_project_tags_resp": {
+        "title": "get_project_tags_resp",
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/tag"
+            }
+          }
+        }
+      },
+      "put_project_tags_body": {
+        "title": "put_project_tags_body",
+        "type": "object",
+        "required": [
+          "tag_ids"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "tag_ids": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "put_project_tags_resp": {
+        "title": "put_project_tags_resp",
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "$ref": "#/components/schemas/tag"
+            }
+          }
+        }
+      },
+      "delete_project_properties_query": {
+        "type": "object",
+        "title": "delete_project_properties_query",
+        "additionalProperties": false,
+        "required": [
+          "properties_keys"
+        ],
+        "properties": {
+          "properties_keys": {
+            "type": "array",
+            "description": "list of properties' keys to remove",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]*$"
+            }
+          }
+        }
+      },
+      "project_properties": {
+        "title": "project_properties",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "properties": {
+            "description": "the project properties",
+            "type": "object"
+          }
+        }
+      },
+      "post_blobs_body": {
+        "title": "post_blobs_body",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "count_blobs": {
+            "description": "the number of blobs to create",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "post_blobs_resp": {
+        "title": "post_blobs_resp",
+        "type": "array",
+        "maxItems": 5000,
+        "items": {
+          "description": "blobs with upload links",
+          "type": "object",
+          "required": [
+            "blob_url",
+            "upload_url"
+          ],
+          "properties": {
+            "blob_url": {
+              "description": "URL to reference this blob",
+              "type": "string",
+              "format": "uri"
+            },
+            "upload_url": {
+              "description": "URL to use for uploading data",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "delete_project_user_properties_query": {
+        "type": "object",
+        "title": "delete_project_user_properties_query",
+        "required": [
+          "properties_keys"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "properties_keys": {
+            "type": "array",
+            "description": "list of properties' keys to remove",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]*$"
+            }
+          }
+        }
+      },
+      "put_project_users_body": {
+        "title": "put_project_users_body",
+        "type": "object",
+        "required": [
+          "users"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "default": false,
+            "description": "if true and the user has the `update:all_projects_users` scope set in jwt token,\nthe user can update the project users\n"
+          },
+          "users": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/project_user"
+            }
+          }
+        }
+      },
+      "put_project_users_resp": {
+        "title": "put_project_users_resp",
+        "type": "object",
+        "required": [
+          "revoked",
+          "granted"
+        ],
+        "properties": {
+          "revoked": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/project_user"
+            }
+          },
+          "granted": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/project_user"
+            }
+          }
+        }
+      },
+      "get_workspaces_query": {
+        "title": "get_workspaces_query",
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "limit"
+        ],
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "If true, returns all projects. Otherwise, returns only the projects that the user has access to.\nNote: The user must have the `get:all_projects` scope set in the JWT token, or an error will be returned.\n",
+            "default": false
+          },
+          "filter": {
+            "description": "filters the worksapces by a specific criteria\nexamples:\n- `'$.description like_regex \".*Wield.*\"'` - filter by the description\n- `'$.name like_regex \".*Wield.*\"'` - filter by the name\n",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$",
+            "maxLength": 255
+          },
+          "sort_criteria": {
+            "description": "list of sort criteria that are applied in order",
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "required": [
+                "path"
+              ],
+              "properties": {
+                "path": {
+                  "description": "how to order the response\nexamples:\n- `\"$.created\"` - sort by the created date\n",
+                  "type": "string",
+                  "pattern": "^\\$\\.[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$",
+                  "example": [
+                    "$.created"
+                  ]
+                },
+                "ascending": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "sort in ascending order if true, descending otherwise"
+                }
+              }
+            }
+          },
+          "limit": {
+            "description": "limits the number of items on a page",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "description": "specifies how many items to skip",
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "maximum": 5000
+          }
+        }
+      },
+      "workspace": {
+        "title": "workspace",
+        "required": [
+          "workspace_id",
+          "name",
+          "tags",
+          "created",
+          "can_be_deleted"
+        ],
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "description": "the workspace ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "can_be_deleted": {
+            "type": "boolean",
+            "description": "A workspace can be deleted if it has no projects\nand the user has the necessary permissions.\n"
+          },
+          "name": {
+            "description": "the workspace name",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "description": {
+            "description": "the workspace description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/tag"
+            }
+          },
+          "created": {
+            "description": "date this workspace was created",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "workspace_item": {
+        "title": "workspace_item",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/workspace"
+          },
+          {
+            "type": "object",
+            "required": [
+              "users"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "users": {
+                "description": "list of users that have access to the workspace",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1000,
+                "items": {
+                  "$ref": "#/components/schemas/project_user"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "get_workspaces_resp": {
+        "title": "get_workspaces_resp",
+        "required": [
+          "workspaces"
+        ],
+        "properties": {
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/workspace_item"
+            }
+          }
+        }
+      },
+      "post_workspace_body": {
+        "title": "post_workspace_body",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "the workspace name",
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$"
+          },
+          "description": {
+            "description": "the workspace description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$",
+            "maxLength": 255
+          },
+          "tags": {
+            "description": "the workspace tags",
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "post_workspace_resp": {
+        "title": "post_workspace_resp",
+        "type": "object",
+        "required": [
+          "workspace"
+        ],
+        "properties": {
+          "workspace": {
+            "$ref": "#/components/schemas/workspace"
+          }
+        }
+      },
+      "head_workspaces_query": {
+        "title": "head_workspaces_query",
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "If true, returns all projects. Otherwise, returns only the projects that the user has access to.\nNote: The user must have the `get:all_projects` scope set in the JWT token, or an error will be returned.\n",
+            "default": false
+          },
+          "filter": {
+            "description": "filters the worksapces by a specific criteria\nexamples:\n- `'$.description like_regex \".*Wield.*\"'` - filter by the description\n- `'$.name like_regex \".*Wield.*\"'` - filter by the name\n",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$",
+            "maxLength": 255
+          }
+        }
+      },
+      "get_workspace_resp": {
+        "title": "get_workspace_resp",
+        "type": "object",
+        "required": [
+          "workspace"
+        ],
+        "properties": {
+          "workspace": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/workspace_item"
+              }
+            ]
+          }
+        }
+      },
+      "patch_workspace_body": {
+        "title": "patch_workspace_body",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "the new workspace name",
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "minLength": 1
+          },
+          "description": {
+            "description": "the new workspace description",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "maxLength": 255
+          },
+          "workspace_id": {
+            "description": "the associated workspace ID",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "patch_workspace_resp": {
+        "title": "patch_workspace_resp",
+        "type": "object",
+        "required": [
+          "workspace"
+        ],
+        "properties": {
+          "workspace": {
+            "$ref": "#/components/schemas/workspace"
+          }
+        }
+      },
+      "get_workspace_tags_resp": {
+        "title": "get_workspace_tags_resp",
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/tag"
+            }
+          }
+        }
+      },
+      "post_workspace_tag_body": {
+        "title": "post_workspace_tag_body",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "style": {
+            "type": "object"
+          }
+        }
+      },
+      "post_workspace_tag_resp": {
+        "title": "post_workspace_tag_resp",
+        "type": "object",
+        "required": [
+          "tag"
+        ],
+        "properties": {
+          "tag": {
+            "type": "object",
+            "$ref": "#/components/schemas/tag"
+          }
+        }
+      },
+      "get_workspace_tag_resp": {
+        "title": "get_workspace_tag_resp",
+        "type": "object",
+        "required": [
+          "tag"
+        ],
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/tag"
+          }
+        }
+      },
+      "patch_workspace_tag_body": {
+        "title": "patch_workspace_tag_body",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "style": {
+            "type": "object"
+          }
+        }
+      },
+      "patch_workspace_tag_resp": {
+        "title": "patch_workspace_tag_resp",
+        "type": "object",
+        "required": [
+          "tag"
+        ],
+        "properties": {
+          "tag": {
+            "type": "object",
+            "$ref": "#/components/schemas/tag"
+          }
+        }
+      },
+      "put_workspace_users_body": {
+        "title": "put_workspace_users_body",
+        "type": "object",
+        "required": [
+          "users"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "If true and the user has the `update:all_projects_users` scope set in the JWT token,\nthe user can update the workspace users.\n",
+            "default": false
+          },
+          "users": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/project_user"
+            }
+          }
+        }
+      },
+      "put_workspace_users_resp": {
+        "title": "put_workspace_users_resp",
+        "type": "object",
+        "required": [
+          "revoked",
+          "granted"
+        ],
+        "properties": {
+          "revoked": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/project_user"
+            }
+          },
+          "granted": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/project_user"
+            }
+          }
+        }
+      }
+    }
+  },
+  "info": {
+    "description": "API for managing projects and users",
+    "license": {
+      "name": "Cognex",
+      "url": "https://www.cognex.com/"
+    },
+    "title": "Project Management API",
+    "version": "24.4.0"
+  },
+  "openapi": "3.0.1",
+  "paths": {
+    "/projects": {
+      "get": {
+        "operationId": "getProjects",
+        "parameters": [
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_projects_query"
+                }
+              }
+            },
+            "description": "control how many projects to return",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_projects_resp"
+                }
+              }
+            },
+            "description": "list of projects"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list projects"
+      },
+      "head": {
+        "operationId": "headProjects",
+        "parameters": [
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/head_projects_query"
+                }
+              }
+            },
+            "description": "control how many projects to return",
+            "in": "query",
+            "name": "parameters",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the number of projects an equivalent GET request would return",
+            "headers": {
+              "project-count": {
+                "description": "the number of projects returned",
+                "schema": {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list projects"
+      },
+      "post": {
+        "operationId": "postProjects",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_project_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project"
+                }
+              }
+            },
+            "description": "added project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "add project"
+      }
+    },
+    "/projects/{project_id}": {
+      "delete": {
+        "operationId": "deleteProjectsById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "description": "Hard delete the project instead of marking it for deletion",
+            "in": "query",
+            "name": "hard",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "removed project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "remove project"
+      },
+      "get": {
+        "operationId": "getProjectById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_project_resp"
+                }
+              }
+            },
+            "description": "the project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "get project"
+      },
+      "patch": {
+        "operationId": "renameProjectsById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_project_by_id_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/patch_project_by_id_resp"
+                }
+              }
+            },
+            "description": "renamed project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "rename project"
+      }
+    },
+    "/projects/{project_id}/copy": {
+      "post": {
+        "operationId": "copyProjects",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_project_copy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project"
+                }
+              }
+            },
+            "description": "copied the project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "copy a project"
+      }
+    },
+    "/projects/{project_id}/project_tags": {
+      "get": {
+        "operationId": "getProjectTags",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_project_tags_resp"
+                }
+              }
+            },
+            "description": "list of tags"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list project tags"
+      },
+      "put": {
+        "operationId": "putProjectTags",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/put_project_tags_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/put_project_tags_resp"
+                }
+              }
+            },
+            "description": "new list of tags"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "set project tags"
+      }
+    },
+    "/projects/{project_id}/project_tags/{tag_id}": {
+      "delete": {
+        "operationId": "deleteProjectTagsById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "remove tag"
+      }
+    },
+    "/projects/{project_id}/properties": {
+      "delete": {
+        "operationId": "deleteProjectProperties",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/delete_project_properties_query"
+                }
+              }
+            },
+            "description": "information about what project properties to delete",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project_properties"
+                }
+              }
+            },
+            "description": "delete project properties"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "delete project properties"
+      },
+      "patch": {
+        "operationId": "patchProjectProperties",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project_properties"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project_properties"
+                }
+              }
+            },
+            "description": "patch project properties"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "patch project properties"
+      }
+    },
+    "/projects/{project_id}/storage/{container_name}/blobs": {
+      "post": {
+        "operationId": "postBlobs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "description": "the container name",
+            "in": "path",
+            "name": "container_name",
+            "required": true,
+            "schema": {
+              "enum": [
+                "default"
+              ],
+              "pattern": "^[\\p{L}\\p{N}]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_blobs_body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_blobs_resp"
+                }
+              }
+            },
+            "description": "returns the new blob's URL"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "create blobs"
+      }
+    },
+    "/projects/{project_id}/user_properties": {
+      "delete": {
+        "operationId": "deleteProjectUserProperties",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/delete_project_user_properties_query"
+                }
+              }
+            },
+            "description": "information about what project properties to delete",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project_properties"
+                }
+              }
+            },
+            "description": "delete all project user properties"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "delete all project user properties"
+      },
+      "get": {
+        "operationId": "getProjectUserProperties",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project_properties"
+                }
+              }
+            },
+            "description": "patch project user properties"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "patch project user properties"
+      },
+      "patch": {
+        "operationId": "patchProjectUserProperties",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project_properties"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project_properties"
+                }
+              }
+            },
+            "description": "patch project user properties"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "patch project user properties"
+      },
+      "post": {
+        "description": "post project user properties",
+        "operationId": "postProjectUserProperties",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project_properties"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/project_properties"
+                }
+              }
+            },
+            "description": "patch project user properties"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "post project user properties"
+      }
+    },
+    "/projects/{project_id}/users": {
+      "put": {
+        "operationId": "putProjectUsers",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/put_project_users_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/put_project_users_resp"
+                }
+              }
+            },
+            "description": "list of added/removed users"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "set project users"
+      }
+    },
+    "/workspaces": {
+      "get": {
+        "operationId": "getWorkspaces",
+        "parameters": [
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_workspaces_query"
+                }
+              }
+            },
+            "description": "control how many projects to return",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_workspaces_resp"
+                }
+              }
+            },
+            "description": "list of projects"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list workspaces",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "head": {
+        "operationId": "headWorkspaces",
+        "parameters": [
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/head_workspaces_query"
+                }
+              }
+            },
+            "description": "control how many workspaces to return",
+            "in": "query",
+            "name": "parameters",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the number of workspaces an equivalent GET request would return",
+            "headers": {
+              "workspace-count": {
+                "description": "the number of workspaces returned",
+                "schema": {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list workspaces",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "post": {
+        "operationId": "postWorkspace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_workspace_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_workspace_resp"
+                }
+              }
+            },
+            "description": "added project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "add project",
+        "tags": [
+          "workspace"
+        ]
+      }
+    },
+    "/workspaces/{workspace_id}": {
+      "delete": {
+        "operationId": "deleteWorkspaceByID",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "removed workspace"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "remove project",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "get": {
+        "operationId": "getWorkspaceById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_workspace_resp"
+                }
+              }
+            },
+            "description": "the project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "get project",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "patch": {
+        "operationId": "patchWorkspaceById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_workspace_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/patch_workspace_resp"
+                }
+              }
+            },
+            "description": "renamed project"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "rename workspace",
+        "tags": [
+          "workspace"
+        ]
+      }
+    },
+    "/workspaces/{workspace_id}/tags": {
+      "get": {
+        "description": "list all tags defined for the projects in the user organization",
+        "operationId": "getProjectTag",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_workspace_tags_resp"
+                }
+              }
+            },
+            "description": "all tags defined for the projects in the current organization"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "list tags",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "post": {
+        "description": "adds a new workspace tag",
+        "operationId": "postProjectsTag",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_workspace_tag_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_workspace_tag_resp"
+                }
+              }
+            },
+            "description": "added tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "add tag",
+        "tags": [
+          "workspace"
+        ]
+      }
+    },
+    "/workspaces/{workspace_id}/tags/{tag_id}": {
+      "delete": {
+        "operationId": "deleteProjectTag",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "removed tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "delete tag",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "get": {
+        "description": "All tags defined for the projects in the current organization",
+        "operationId": "getWorkspaceTagById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TagId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_workspace_tag_resp"
+                }
+              }
+            },
+            "description": "get the project tag by ID"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "list tags",
+        "tags": [
+          "workspace"
+        ]
+      },
+      "patch": {
+        "operationId": "patchWorkspaceTag",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_workspace_tag_body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/patch_workspace_tag_resp"
+                }
+              }
+            },
+            "description": "patched tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "patch tag",
+        "tags": [
+          "workspace"
+        ]
+      }
+    },
+    "/workspaces/{workspace_id}/users": {
+      "put": {
+        "operationId": "putWorkspaceUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/put_workspace_users_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/put_workspace_users_resp"
+                }
+              }
+            },
+            "description": "list of added/removed users"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "set project users",
+        "tags": [
+          "workspace"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://www.cognex.com/api"
+    }
+  ]
+}
