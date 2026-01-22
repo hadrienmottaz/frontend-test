@@ -8,9 +8,23 @@ const ImageDisplay = () => {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
 
+  // Clean up object URL on component unmount or when new image is loaded
+  useEffect(() => {
+    return () => {
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+      }
+    };
+  }, [imageUrl]);
+
   const handleImageSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // Revoke old object URL before creating a new one
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+      }
+      
       const url = URL.createObjectURL(file);
       setImageUrl(url);
       setRectangles([]); // Clear existing rectangles when new image is loaded
@@ -46,11 +60,20 @@ const ImageDisplay = () => {
 
   const drawCanvas = React.useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
     const img = imageRef.current;
 
+    if (!canvas || !img) return;
+
+    const ctx = canvas.getContext('2d');
+
     if (!img.complete) {
-      img.onload = () => drawCanvas();
+      // Use a ref-based approach to avoid stale closures
+      const handleLoad = () => {
+        if (canvasRef.current && imageRef.current) {
+          drawCanvas();
+        }
+      };
+      img.onload = handleLoad;
       return;
     }
 

@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ImageUploader.css';
 
 const ImageUploader = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
 
+  // Clean up object URLs on component unmount
+  useEffect(() => {
+    return () => {
+      previews.forEach(preview => URL.revokeObjectURL(preview));
+    };
+  }, [previews]);
+
   const handleFileSelect = (event) => {
+    // Revoke old object URLs before creating new ones
+    previews.forEach(preview => URL.revokeObjectURL(preview));
+    
     const files = Array.from(event.target.files);
     setSelectedFiles(files);
 
@@ -57,6 +67,9 @@ const ImageUploader = () => {
   };
 
   const handleClear = () => {
+    // Revoke object URLs before clearing
+    previews.forEach(preview => URL.revokeObjectURL(preview));
+    
     setSelectedFiles([]);
     setPreviews([]);
   };
