@@ -1,0 +1,1683 @@
+{
+  "components": {
+    "parameters": {
+      "FrameName": {
+        "description": "the frame name",
+        "in": "path",
+        "name": "frame_name",
+        "required": true,
+        "schema": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\s]*[\\p{L}\\p{N}]$",
+          "type": "string"
+        }
+      },
+      "ImageId": {
+        "description": "the image ID",
+        "in": "path",
+        "name": "image_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "NodeId": {
+        "description": "the node ID",
+        "in": "path",
+        "name": "node_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "PageLimit": {
+        "description": "number of items to return",
+        "in": "query",
+        "name": "limit",
+        "schema": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "PageOffset": {
+        "description": "index of the first item to return",
+        "in": "query",
+        "name": "offset",
+        "schema": {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "ProjectId": {
+        "description": "the project ID",
+        "in": "path",
+        "name": "project_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "SampleId": {
+        "description": "the sample ID",
+        "in": "path",
+        "name": "sample_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "StorageId": {
+        "description": "the storage ID",
+        "in": "path",
+        "name": "storage_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "TagId": {
+        "description": "the tag ID",
+        "in": "path",
+        "name": "tag_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "ViewId": {
+        "description": "the view ID",
+        "in": "path",
+        "name": "view_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "400Error": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "message": {
+                  "maxLength": 3000,
+                  "minLength": 0,
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "description": "Invalid request"
+      },
+      "404Error": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "message": {
+                  "maxLength": 3000,
+                  "minLength": 0,
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "description": "Not found"
+      }
+    },
+    "schemas": {
+      "post_image_body": {
+        "type": "object",
+        "additionalProperties": false,
+        "title": "post_image_body",
+        "required": [
+          "filename",
+          "image_url"
+        ],
+        "properties": {
+          "filename": {
+            "description": "the image filename",
+            "type": "string",
+            "maxLength": 270,
+            "minLength": 5,
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$"
+          },
+          "image_url": {
+            "description": "the URL of the image",
+            "type": "string",
+            "format": "uri",
+            "maxLength": 3000,
+            "minLength": 10,
+            "pattern": "^blob:\\/\\/[\\p{Ll}\\p{N}\\-\\/]+[^\\/]$"
+          },
+          "info": {
+            "description": "object holding image meta-information",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "width": {
+                "description": "the image width in pixels",
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 16384
+              },
+              "height": {
+                "description": "the image height in pixels",
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 16384
+              },
+              "channels": {
+                "description": "the image channels",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              },
+              "trigger_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "line": {
+                "type": "string",
+                "pattern": "^[A-Z][0-9]*$",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 255,
+                "pattern": "^[\\p{L}\\p{N}\\p{P}\\s]*$'"
+              },
+              "image_format": {
+                "type": "string",
+                "enum": [
+                  "png",
+                  "bmp",
+                  "jpg",
+                  "jpeg",
+                  "tif",
+                  "tiff",
+                  "webp"
+                ]
+              },
+              "cameraName": {
+                "type": "string",
+                "pattern": "^[0-9A-Za-z\\-_]*$",
+                "maxLength": 63,
+                "minLength": 1
+              },
+              "serialNumber": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 30,
+                "pattern": "^[0-9A-Za-z]*$"
+              },
+              "timestamp": {
+                "type": "string",
+                "minLength": 4,
+                "maxLength": 30
+              },
+              "imageId": {
+                "type": "string",
+                "description": "it is not required to be the same as image_id stored by vision builder",
+                "minLength": 1,
+                "maxLength": 50,
+                "pattern": "^[0-9A-Za-z\\-_]*$"
+              }
+            }
+          }
+        }
+      },
+      "image_info": {
+        "type": "object",
+        "title": "image_info",
+        "required": [
+          "width",
+          "height",
+          "channels"
+        ],
+        "description": "information about the image",
+        "properties": {
+          "width": {
+            "description": "image width in pixels",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16384
+          },
+          "height": {
+            "description": "image height in pixels",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16384
+          },
+          "channels": {
+            "description": "number of channels",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          }
+        }
+      },
+      "image": {
+        "type": "object",
+        "title": "image",
+        "required": [
+          "image_id"
+        ],
+        "properties": {
+          "image_id": {
+            "description": "the image ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "filename": {
+            "description": "the image filename",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$",
+            "maxLength": 255,
+            "minLength": 2
+          },
+          "info": {
+            "$ref": "#/components/schemas/image_info"
+          },
+          "created": {
+            "description": "date this image was created",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "post_image_resp": {
+        "title": "post_image_resp",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/image"
+          }
+        ],
+        "required": [
+          "filename",
+          "info",
+          "created"
+        ]
+      },
+      "mime": {
+        "description": "Image mime type",
+        "title": "mime",
+        "type": "string",
+        "enum": [
+          "image/png",
+          "image/jpeg",
+          "image/bmp",
+          "image/webp",
+          "image/tiff"
+        ],
+        "default": "image/png"
+      },
+      "get_image_query": {
+        "type": "object",
+        "title": "get_image_query",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "description": "format to encode the image",
+            "$ref": "#/components/schemas/mime"
+          },
+          "width": {
+            "description": "if defined resize the image to that width, otherwise adjust the width to keep the aspect-ratio if height is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          },
+          "height": {
+            "description": "if defined resize the image to that height, otherwise adjust the height to keep the aspect-ratio if width is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          }
+        }
+      },
+      "get_image_resp": {
+        "type": "object",
+        "title": "get_image_resp",
+        "required": [
+          "image_url"
+        ],
+        "properties": {
+          "image_url": {
+            "description": "URL from which the requested image can be downloaded",
+            "type": "string",
+            "format": "uri"
+          },
+          "expires_on": {
+            "description": "date in UTC when the link will expire",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "get_view_image_query": {
+        "type": "object",
+        "title": "get_view_image_query",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "description": "format to encode the image",
+            "$ref": "#/components/schemas/mime"
+          },
+          "width": {
+            "description": "if defined resize the image to that width, otherwise adjust the width to keep the aspect-ratio if height is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          },
+          "height": {
+            "description": "if defined resize the image to that height, otherwise adjust the height to keep the aspect-ratio if width is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          }
+        }
+      },
+      "get_view_image_resp": {
+        "type": "object",
+        "title": "get_view_image_resp",
+        "required": [
+          "image_url"
+        ],
+        "properties": {
+          "image_url": {
+            "description": "URL from which the requested image can be downloaded",
+            "type": "string",
+            "format": "uri"
+          },
+          "expires_on": {
+            "description": "date in UTC when the link will expire",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "get_view_input_image_query": {
+        "type": "object",
+        "title": "get_view_input_image_query",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "the input image name",
+            "type": "string",
+            "default": "image",
+            "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{P}\\s]*[\\p{L}\\p{N}]$",
+            "minLength": 2,
+            "maxLength": 255
+          },
+          "format": {
+            "description": "format to encode the image",
+            "$ref": "#/components/schemas/mime"
+          },
+          "width": {
+            "description": "if defined resize the image to that width, otherwise adjust the width to keep the aspect-ratio if height is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          },
+          "height": {
+            "description": "if defined resize the image to that height, otherwise adjust the height to keep the aspect-ratio if width is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          }
+        }
+      },
+      "get_view_input_image_resp": {
+        "type": "object",
+        "title": "get_view_input_image_resp",
+        "required": [
+          "image_url"
+        ],
+        "properties": {
+          "image_url": {
+            "description": "URL from which the requested image can be downloaded",
+            "type": "string",
+            "format": "uri"
+          },
+          "expires_on": {
+            "description": "date in UTC when the link will expire",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "get_samples_query": {
+        "type": "object",
+        "title": "get_samples_query",
+        "additionalProperties": false,
+        "required": [
+          "limit"
+        ],
+        "properties": {
+          "filter_path": {
+            "description": "only return samples for which this jsonpath expression returns true\n \n examples:\n - `$.created > \"2019-08-24T14:15:22Z\"` - samples newer than the given date-time\n - `$.deleted - samples that were deleted \n - `$.name like_regex \"<substring>\"` - the sample name contains the given substring\n - `$.tag_ids == \"<tag_id>\"` - samples with the given tag ID\n - `$.frames.size() > 1` - samples with more than one frame",
+            "type": "string",
+            "maxLength": 1000
+          },
+          "sort_criteria": {
+            "description": "list of sort criteria that are applied in order",
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path"
+              ],
+              "properties": {
+                "path": {
+                  "description": "order the returned samples based on the value of this jsonpath expression\n\n examples:\n - `$.created` - order by the date the sample was created\n - `$.name` order by the sample name\n - `$.frames.size()` order by the number of frames",
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                "ascending": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "sort in ascending order if true, descending otherwise"
+                }
+              }
+            }
+          },
+          "limit": {
+            "description": "number of items to return",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "offset": {
+            "description": "index of the first item to return",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        }
+      },
+      "frame": {
+        "description": "a frame represents an image in a sample",
+        "title": "frame",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/image"
+          }
+        ]
+      },
+      "sample": {
+        "type": "object",
+        "title": "sample",
+        "description": "a sample is a stack of one or more frames",
+        "required": [
+          "sample_id",
+          "name",
+          "frames"
+        ],
+        "properties": {
+          "sample_id": {
+            "description": "the sample ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "description": "the sample name",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[\\p{L}\\p{N}\\p{P}\\p{S}\\s]+$"
+          },
+          "frames": {
+            "type": "object",
+            "description": "a collection of frames",
+            "required": [
+              "default"
+            ],
+            "minProperties": 1,
+            "maxProperties": 20,
+            "additionalProperties": {
+              "x-additionalPropertiesName": "frame_name",
+              "$ref": "#/components/schemas/frame"
+            }
+          },
+          "tag_ids": {
+            "type": "array",
+            "maxItems": 255,
+            "description": "list of tags assigned to this sample",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "created": {
+            "type": "string",
+            "description": "timestamp when this sample was created",
+            "format": "date-time"
+          },
+          "deleted": {
+            "type": "string",
+            "description": "timestamp when this sample was deleted",
+            "format": "date-time"
+          }
+        }
+      },
+      "get_samples_resp": {
+        "type": "object",
+        "title": "get_samples_resp",
+        "description": "response for get samples",
+        "required": [
+          "samples"
+        ],
+        "properties": {
+          "samples": {
+            "type": "array",
+            "title": "get_samples_resp",
+            "minItems": 0,
+            "maxItems": 1000,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/sample"
+                },
+                {
+                  "required": [
+                    "tag_ids",
+                    "created"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "pose": {
+        "type": "object",
+        "title": "pose",
+        "description": "affine transform describing the mapping from\nthe region to the entire image\n",
+        "additionalProperties": false,
+        "required": [
+          "m00",
+          "m01",
+          "m10",
+          "m11",
+          "translation_x",
+          "translation_y"
+        ],
+        "properties": {
+          "m00": {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "m01": {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "m10": {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "m11": {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "translation_x": {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "translation_y": {
+            "type": "number",
+            "minimum": -100000,
+            "maximum": 100000
+          }
+        }
+      },
+      "region_of_interest": {
+        "type": "object",
+        "title": "region_of_interest",
+        "description": "a region-of-interest",
+        "required": [
+          "width",
+          "height",
+          "pose"
+        ],
+        "properties": {
+          "width": {
+            "description": "the width of the destination image in pixels",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000,
+            "x-unit": "pixel"
+          },
+          "height": {
+            "description": "the height of the destination image in pixels",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000,
+            "x-unit": "pixel"
+          },
+          "pose": {
+            "$ref": "#/components/schemas/pose"
+          },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "image_mask": {
+        "type": "object",
+        "title": "image_mask",
+        "description": "mask object image_id",
+        "required": [
+          "image_id"
+        ],
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "image ID of the mask"
+          }
+        }
+      },
+      "has_mask": {
+        "type": "object",
+        "title": "has_mask",
+        "description": "object with optional mask",
+        "properties": {
+          "mask": {
+            "$ref": "#/components/schemas/image_mask"
+          }
+        }
+      },
+      "region_of_interest_with_mask": {
+        "type": "object",
+        "title": "region_of_interest_with_mask",
+        "description": "a region-of-interest with an optional mask",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/region_of_interest"
+          },
+          {
+            "$ref": "#/components/schemas/has_mask"
+          }
+        ]
+      },
+      "post_samples_body_item": {
+        "type": "object",
+        "title": "post_samples_body_item",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "frames"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "a sample name, unique within the project",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[\\p{L}\\p{N}\\p{S}\\p{P}\\s]+$"
+          },
+          "frames": {
+            "type": "object",
+            "description": "map of frames assigned to the sample",
+            "required": [
+              "default"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "image_id"
+              ],
+              "properties": {
+                "image_id": {
+                  "description": "the image ID",
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "region_of_interest": {
+                  "$ref": "#/components/schemas/region_of_interest_with_mask"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post_samples_body": {
+        "title": "post_samples_body",
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 1000,
+        "items": {
+          "$ref": "#/components/schemas/post_samples_body_item"
+        }
+      },
+      "post_samples_resp_item": {
+        "type": "object",
+        "title": "post_samples_resp_item",
+        "required": [
+          "sample_id"
+        ],
+        "properties": {
+          "sample_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "post_samples_resp": {
+        "title": "post_samples_resp",
+        "type": "array",
+        "maxItems": 1000,
+        "items": {
+          "$ref": "#/components/schemas/post_samples_resp_item"
+        }
+      },
+      "delete_samples_query": {
+        "type": "object",
+        "title": "delete_samples_query",
+        "required": [
+          "sample_filter"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sample_filter": {
+            "description": "array of sample IDs or a filter path on samples to delete",
+            "oneOf": [
+              {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 500,
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "only return samples for which this jsonpath expression returns true\nexamples:\n- `$.created > \\\"2019-08-24T14:15:22Z\\\"` - samples newer than the given date-time\n- `$.deleted` - samples that were deleted\n- `$.name like_regex \\\"<substring>\\\"` - the sample name contains the given substring\n- `$.tag_ids == \\\"<tag_id>\\\"` - samples with the given tag ID\n- `$.frames.size() > 1` - samples with more than one frame\n"
+              }
+            ]
+          }
+        }
+      },
+      "head_samples_query": {
+        "type": "object",
+        "title": "head_samples_query",
+        "additionalProperties": false,
+        "properties": {
+          "filter_path": {
+            "description": "only return samples for which this jsonpath expression returns true\n \n examples:\n - `$.created > \"2019-08-24T14:15:22Z\"` - samples newer than the given date-time\n - `$.deleted - samples that were deleted \n - `$.name like_regex \"<substring>\"` - the sample name contains the given substring\n - `$.tag_ids == \"<tag_id>\"` - samples with the given tag ID\n - `$.frames.size() > 1` - samples with more than one frame",
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      },
+      "get_frame_image_query": {
+        "type": "object",
+        "title": "get_frame_image_query",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "description": "format to encode the image",
+            "$ref": "#/components/schemas/mime"
+          },
+          "width": {
+            "description": "if defined resize the image after cropping to that width, otherwise adjust the width to keep the aspect-ratio if height is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          },
+          "height": {
+            "description": "if defined resize the image after cropping to that height, otherwise adjust the height to keep the aspect-ratio if width is defined",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 16384
+          }
+        }
+      },
+      "get_frame_image_resp": {
+        "type": "object",
+        "title": "get_frame_image_resp",
+        "required": [
+          "image_url"
+        ],
+        "properties": {
+          "image_url": {
+            "description": "URL from which the requested image can be downloaded",
+            "type": "string",
+            "format": "uri"
+          },
+          "expires_on": {
+            "description": "date in UTC when the link will expire",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "tag_style": {
+        "type": "object",
+        "title": "tag_style",
+        "description": "describes the tag style",
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "description": "the color of the tag",
+            "type": "string",
+            "maxLength": 255
+          }
+        }
+      },
+      "tag": {
+        "type": "object",
+        "title": "tag",
+        "required": [
+          "tag_id",
+          "name"
+        ],
+        "properties": {
+          "tag_id": {
+            "description": "the tag ID",
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "description": "the name of the tag",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^([\\p{L}\\p{N}]|[\\p{L}\\p{N}][\\p{L}\\p{N}\\s\\-_]*[\\p{L}\\p{N}])$"
+          },
+          "style": {
+            "$ref": "#/components/schemas/tag_style"
+          },
+          "created": {
+            "description": "date this tag was created",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "get_tags_resp_item": {
+        "title": "get_tags_resp_item",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/tag"
+          }
+        ],
+        "required": [
+          "created",
+          "style",
+          "count_samples"
+        ],
+        "properties": {
+          "count_samples": {
+            "description": "number of samples with this tag",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      },
+      "get_tags_resp": {
+        "title": "get_tags_resp",
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 255,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/get_tags_resp_item"
+                }
+              ],
+              "required": [
+                "style",
+                "created"
+              ]
+            }
+          }
+        }
+      },
+      "post_tags_body": {
+        "type": "object",
+        "title": "post_tags_body",
+        "required": [
+          "name",
+          "style"
+        ],
+        "properties": {
+          "name": {
+            "description": "the name of the new tag",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^([\\p{L}\\p{N}]|[\\p{L}\\p{N}][\\p{L}\\p{N}\\s\\-_]*[\\p{L}\\p{N}])$"
+          },
+          "style": {
+            "description": "the style of the new tag",
+            "$ref": "#/components/schemas/tag_style"
+          }
+        }
+      },
+      "patch_tag_by_id_body": {
+        "type": "object",
+        "title": "patch_tag_by_id_body",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "new tag name",
+            "type": "string",
+            "pattern": "^([\\p{L}\\p{N}]|[\\p{L}\\p{N}][\\p{L}\\p{N}\\s\\-_]*[\\p{L}\\p{N}])$",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "style": {
+            "description": "new tag style",
+            "$ref": "#/components/schemas/tag_style"
+          }
+        }
+      },
+      "delete_samples_from_tag_query": {
+        "type": "object",
+        "title": "delete_samples_from_tag_query",
+        "required": [
+          "sample_filter"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sample_filter": {
+            "description": "array of sample IDs or a filter path on samples to which to remove the tag",
+            "oneOf": [
+              {
+                "type": "array",
+                "deprecated": true,
+                "minItems": 1,
+                "maxItems": 30,
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "only return samples for which this jsonpath expression returns true\nexamples:\n- `$.created > \\\"2019-08-24T14:15:22Z\\\"` - samples newer than the given date-time\n- `$.deleted` - samples that were deleted\n- `$.name like_regex \\\"<substring>\\\"` - the sample name contains the given substring\n- `$.tag_ids == \\\"<tag_id>\\\"` - samples with the given tag ID\n- `$.frames.size() > 1` - samples with more than one frame\n"
+              }
+            ]
+          }
+        }
+      },
+      "patch_samples_to_tag_body": {
+        "type": "object",
+        "title": "patch_samples_to_tag_body",
+        "required": [
+          "sample_filter"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sample_filter": {
+            "description": "array of sample IDs or a filter path on samples to which to add the tag",
+            "oneOf": [
+              {
+                "type": "array",
+                "deprecated": true,
+                "minItems": 1,
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "only return samples for which this jsonpath expression returns true\nexamples:\n- `$.created > \\\"2019-08-24T14:15:22Z\\\"` - samples newer than the given date-time\n- `$.deleted` - samples that were deleted\n- `$.name like_regex \\\"<substring>\\\"` - the sample name contains the given substring\n- `$.tag_ids == \\\"<tag_id>\\\"` - samples with the given tag ID\n- `$.frames.size() > 1` - samples with more than one frame\n"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "info": {
+    "description": "API for Image-Management",
+    "license": {
+      "name": "Cognex",
+      "url": "http://www.cognex.com"
+    },
+    "title": "Image Management API",
+    "version": "24.2.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/projects/{project_id}/images": {
+      "post": {
+        "operationId": "postImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_image_body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_image_resp"
+                }
+              }
+            },
+            "description": "added new image description"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "add image"
+      }
+    },
+    "/projects/{project_id}/images/{image_id}": {
+      "get": {
+        "operationId": "getImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/ImageId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_image_query"
+                }
+              }
+            },
+            "description": "specify the size and format of the image to return",
+            "in": "query",
+            "name": "parameters",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_image_resp"
+                }
+              }
+            },
+            "description": "signed download URL"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "get image"
+      }
+    },
+    "/projects/{project_id}/nodes/{node_id}/views/{view_id}/frames/{frame_name}/image": {
+      "get": {
+        "deprecated": true,
+        "description": "returns the view image",
+        "operationId": "getViewImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          },
+          {
+            "$ref": "#/components/parameters/ViewId"
+          },
+          {
+            "$ref": "#/components/parameters/FrameName"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_view_image_query"
+                }
+              }
+            },
+            "description": "specify the size and format of the image to return",
+            "in": "query",
+            "name": "parameters",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_view_image_resp"
+                }
+              }
+            },
+            "description": "signed download URL"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "get view image"
+      }
+    },
+    "/projects/{project_id}/nodes/{node_id}/views/{view_id}/image": {
+      "get": {
+        "description": "returns an image from the view inputs",
+        "operationId": "getViewInputImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          },
+          {
+            "$ref": "#/components/parameters/ViewId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_view_input_image_query"
+                }
+              }
+            },
+            "description": "specify the size and format of the image to return",
+            "in": "query",
+            "name": "parameters",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_view_input_image_resp"
+                }
+              }
+            },
+            "description": "signed download URL"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "get view image"
+      }
+    },
+    "/projects/{project_id}/samples": {
+      "delete": {
+        "operationId": "deleteSamples",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/delete_samples_query"
+                }
+              }
+            },
+            "description": "specify the samples to delete",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "delete samples"
+      },
+      "get": {
+        "operationId": "getSamples",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_samples_query"
+                }
+              }
+            },
+            "description": "control which samples are returned and in what order",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_samples_resp"
+                }
+              }
+            },
+            "description": "list of samples",
+            "headers": {
+              "sample-count": {
+                "description": "the number of samples returned",
+                "schema": {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list samples"
+      },
+      "head": {
+        "operationId": "headSamples",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/head_samples_query"
+                }
+              }
+            },
+            "description": "control which samples are returned and in what order",
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the number of samples an equivalent GET request would return",
+            "headers": {
+              "sample-count": {
+                "description": "the number of samples returned",
+                "schema": {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list samples (head)"
+      },
+      "post": {
+        "operationId": "postSamples",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_samples_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_samples_resp"
+                }
+              }
+            },
+            "description": "added new samples"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "add list of samples"
+      }
+    },
+    "/projects/{project_id}/samples/{sample_id}": {
+      "delete": {
+        "operationId": "deleteSampleById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/SampleId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted sample"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "remove sample"
+      }
+    },
+    "/projects/{project_id}/samples/{sample_id}/frames/{frame_name}/image": {
+      "get": {
+        "description": "returns the sample/frame image after applying the ROI",
+        "operationId": "getFrameImage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/SampleId"
+          },
+          {
+            "$ref": "#/components/parameters/FrameName"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_frame_image_query"
+                }
+              }
+            },
+            "description": "specify the size and format of the image to return",
+            "in": "query",
+            "name": "parameters",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_frame_image_resp"
+                }
+              }
+            },
+            "description": "signed download URL"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "get sample image"
+      }
+    },
+    "/projects/{project_id}/tags": {
+      "get": {
+        "operationId": "getTags",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_tags_resp"
+                }
+              }
+            },
+            "description": "list of tags"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "list tags"
+      },
+      "post": {
+        "operationId": "postTags",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_tags_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/tag"
+                }
+              }
+            },
+            "description": "the new tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          }
+        },
+        "summary": "add tag"
+      }
+    },
+    "/projects/{project_id}/tags/{tag_id}": {
+      "delete": {
+        "operationId": "deleteTagsById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "remove tag"
+      },
+      "patch": {
+        "operationId": "patchTagByID",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_tag_by_id_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/tag"
+                }
+              }
+            },
+            "description": "updated tag"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "update tag"
+      }
+    },
+    "/projects/{project_id}/tags/{tag_id}/samples": {
+      "delete": {
+        "operationId": "deleteSamplesFromTag",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          },
+          {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/delete_samples_from_tag_query"
+                }
+              }
+            },
+            "in": "query",
+            "name": "parameters",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "remove tag from samples"
+      },
+      "patch": {
+        "operationId": "patchSamplesToTag",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/TagId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_samples_to_tag_body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "tagged samples"
+          },
+          "400": {
+            "$ref": "#/components/responses/400Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "summary": "add tag to samples"
+      }
+    }
+  }
+}
