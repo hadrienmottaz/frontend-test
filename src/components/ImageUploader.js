@@ -338,7 +338,7 @@ const ImageUploader = () => {
       };
 
       // Upload files with concurrency limit (4 simultaneous uploads for optimal performance)
-      const UPLOAD_CONCURRENCY = 4;
+      const UPLOAD_CONCURRENCY = 6;
       
       const uploadTasks = selectedFiles.map((file, index) => {
         return () => {
